@@ -1,0 +1,16 @@
+{
+  "name": "AHASS Service Reminder",
+  "short_name": "AHASS App",
+  "description": "Manajemen Jadwal Servis AHASS Honda",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff4d4d",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

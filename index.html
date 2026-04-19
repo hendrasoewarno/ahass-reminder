@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+	
+	<link rel="manifest" href="manifest.json">
+	<meta name="theme-color" content="#ff4d4d">
+	<link rel="apple-touch-icon" href="icon.png">	
+	
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Reminder Honda v10</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #e9ecef; margin: 0; display: flex; justify-content: center; }
+        .container { background: white; width: 100%; max-width: 414px; min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding-bottom: 40px; display: flex; flex-direction: column; }
+        .header-card { background: linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.6)), url('reminder.avif'); background-size: cover; height: 150px; display: flex; align-items: flex-end; padding: 20px; color: white; }
+        .question-section { padding: 15px 25px; }
+        .label-text { font-weight: 600; font-size: 0.85rem; margin-bottom: 8px; color: #333; display: block; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 0.9rem; box-sizing: border-box; background-color: #f9f9f9; }
+		.info-box { background-color: #f0f7ff; border-left: 4px solid #007bff; padding: 10px; margin-top: 5px; font-size: 0.8rem; color: #444; }
+        .reminder-options { display: flex; gap: 10px; }
+        .opt-btn { flex: 1; padding: 12px; text-align: center; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: 500; }
+        .opt-btn.active { background: #ff4d4d; color: white; border-color: #ff4d4d; }
+        .hidden { display: none; }
+        .readonly-input { background-color: #eee !important; cursor: not-allowed; }
+        .btn-action { width: calc(100% - 50px); margin: 10px auto; padding: 14px; border-radius: 30px; font-size: 1rem; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; box-sizing: border-box; text-decoration: none; border: none; }
+        .btn-submit { background: #ff4d4d; color: white; margin-top: 20px; }
+        .btn-calendar { background: #4285F4; color: white; display: none; }
+		.btn-whatsapp { background: #25D366; color: white; display: none; }
+		.btn-email { background: #ea4335; color: white; display: none; } /* Warna merah Google/Email */
+        #qr-container { text-align: center; margin: 20px 25px; padding: 15px; border: 2px dashed #ddd; border-radius: 15px; background: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-card">
+        <div><h1>Service Reminder</h1><p>Manajemen Jadwal AHASS</p></div>
+    </div>
+
+    <div class="question-section">
+        <label class="label-text">1. Jenis Reminder</label>
+        <div class="reminder-options">
+            <div class="opt-btn" onclick="setJenis('KPB')" id="btn-kpb">KPB</div>
+            <div class="opt-btn" onclick="setJenis('NON-KPB')" id="btn-nonkpb">Non-KPB</div>
+        </div>
+    </div>
+
+    <div id="form-kpb" class="hidden">
+        <div class="question-section"><label class="label-text">2.1 Tanggal Pembelian</label><input type="date" id="tgl_beli" onchange="hitungOtomatisKPB()"></div>
+        <div class="question-section">
+            <label class="label-text">2.2 Tipe Motor</label>
+            <select id="tipe_motor" onchange="updateDropdownKPB()"><option value="">-- Pilih Tipe --</option><option value="CUB_MATIC">Cub / Matic</option><option value="SPORT">Sport</option></select>
+        </div>
+        <div class="question-section"><label class="label-text">2.3 Jenis KPB</label><select id="jenis_kpb" onchange="hitungOtomatisKPB()"></select></div>
+        <div class="question-section"><label class="label-text">2.4 Maks Kilometer</label><input type="text" id="max_km" class="readonly-input" readonly></div>
+        <div class="question-section"><label class="label-text">2.5 Maks Bulan</label><input type="text" id="max_bln" class="readonly-input" readonly></div>
+        <div class="question-section">
+			<label class="label-text">2.6 Maks Tanggal Service</label><input type="date" id="max_tgl_service_kpb" onchange="recalculateKPB()">
+			<div class="info-box" id="info_max_tgl_service_kpb">Otomatis dimajukan ke hari Sabtu jika jatuh di hari Minggu.</div>
+		</div>
+        <div class="question-section"><label class="label-text">2.7 Pengingat Dimulai (H-? Hari Sebelumnya)</label><input type="number" id="h_days_kpb" value="14" min="1" oninput="recalculateKPB()"></div>
+        <div class="question-section">
+			<label class="label-text">2.8 Tanggal Reminder Dimulai</label><input type="text" id="tgl_reminder_kpb" class="readonly-input" readonly>
+			<div class="info-box" id="info_tgl_reminder_kpb">Otomatis dimajukan ke hari Minggu jika jatuh di hari Kerja.</div>
+		</div>
+    </div>
+
+    <div id="form-nonkpb" class="hidden">
+        <div class="question-section"><label class="label-text">3.1 Estimasi Bulan Servis Berikutnya</label><input type="number" id="jml_bulan_non" value="4" min="1" oninput="hitungOtomatisNonKPB()"></div>
+        <div class="question-section">
+			<label class="label-text">3.2 Tanggal Service Berikutnya</label><input type="date" id="tgl_service_non" onchange="recalculateNonKPB()">
+			<div class="info-box" id="info_tgl_service_non">Otomatis dimajukan ke hari Sabtu jika jatuh di hari Minggu.</div>
+		</div>
+        <div class="question-section"><label class="label-text">3.3 Pengingat Dimulai (H-? Hari Sebelumnya)</label><input type="number" id="h_days_non" value="14" min="1" oninput="recalculateNonKPB()"></div>
+        <div class="question-section">
+			<label class="label-text">3.4 Tanggal Reminder Dimulai</label><input type="text" id="tgl_reminder_non" class="readonly-input" readonly>
+			<div class="info-box" id="info_tgl_reminder_non">Otomatis dimajukan ke hari Minggu jika jatuh di hari Kerja.</div>
+		</div>
+    </div>
+
+    <button class="btn-action btn-submit" onclick="validasiDanKirim()">
+        <i class="fas fa-save"></i> Buat Pengingat Servis
+    </button>
+    
+    <div id="qr-container" class="hidden">
+        <p class="label-text" style="margin-top:0">Scan QR Code:</p>
+        <img id="qr-image" src="" alt="QR Calendar" style="width: 250px; height: 250px;">
+    </div>    
+    
+    <a id="google-cal-btn" class="btn-action btn-calendar" target="_blank">
+        <i class="fab fa-google"></i> Tambah ke Google Calendar
+    </a>
+		
+    <div id="form-whatsapp" class="hidden">
+        <div class="question-section"><label class="label-text">Nomor Whatsapp</label><input type="tel" id="no_whatsapp" placeholder="Contoh: 081370373223"	pattern="[0-9]{10,15}"></div>
+    </div>
+	
+    <a id="whatsapp-btn" class="btn-action btn-whatsapp" target="_blank" onclick="kirimWhatsApp()">
+        <i class="fab fa-whatsapp"></i> Kirim Calendar ke Whatsapp
+    </a>
+	
+	<div id="form-email" class="hidden">
+		<div class="question-section">
+			<label class="label-text">Alamat Email Konsumen</label>	<input type="email" id="no_email" placeholder="contoh@email.com"> </div>
+	</div>
+
+	<a id="email-btn" class="btn-action btn-email" target="_blank" onclick="kirimEmail()">
+		<i class="fas fa-envelope"></i> Kirim Calendar ke Email
+	</a>	
+</div>
+
+<script>
+    let currentJenis = null;
+    let globalData = {};
+
+    const configKPB = {
+        "CUB_MATIC": { "KPB-1": { km: 1000, bln: 2 }, "KPB-2": { km: 4000, bln: 4 }, "KPB-3": { km: 8000, bln: 8 }, "KPB-4": { km: 12000, bln: 12 } },
+        "SPORT": { "KPB-1": { km: 1000, bln: 2 }, "KPB-2": { km: 6000, bln: 6 }, "KPB-3": { km: 12000, bln: 12 } }
+    };
+
+    function setJenis(val) {
+        currentJenis = val;
+        document.getElementById('btn-kpb').classList.toggle('active', val === 'KPB');
+        document.getElementById('btn-nonkpb').classList.toggle('active', val === 'NON-KPB');
+        document.getElementById('form-kpb').classList.toggle('hidden', val !== 'KPB');
+        document.getElementById('form-nonkpb').classList.toggle('hidden', val !== 'NON-KPB');
+        hideResults();
+        if(val === 'NON-KPB') hitungOtomatisNonKPB();
+    }
+
+	function hideResults() {
+		document.getElementById('google-cal-btn').style.display = 'none';
+		document.getElementById('qr-container').classList.add('hidden');
+		document.getElementById('form-whatsapp').classList.add('hidden');
+		document.getElementById('whatsapp-btn').style.display = 'none';
+		document.getElementById('form-email').classList.add('hidden');
+		document.getElementById('email-btn').style.display = 'none';
+	}
+
+    function updateDropdownKPB() {
+        const tipe = document.getElementById('tipe_motor').value;
+        const sel = document.getElementById('jenis_kpb');
+        sel.innerHTML = '<option value="">-- Pilih KPB --</option>';
+        if(tipe) Object.keys(configKPB[tipe]).forEach(k => sel.innerHTML += `<option value="${k}">${k}</option>`);
+        hitungOtomatisKPB();
+    }
+
+    function calculateReminderDate(targetDateStr, hDaysValue) {
+        if (!targetDateStr) return null;
+        let d = new Date(targetDateStr);
+        d.setDate(d.getDate() - (parseInt(hDaysValue) || 0));
+		
+		// Upayakan Tanggal reminder jatuh di hari Minggu agar konsumen tidak terganggu dihari kerja (Senin - Sabtu)
+        while (d.getDay() !== 0) { d.setDate(d.getDate() - 1); } 
+        return d;
+    }
+
+    // FUNGSI UTAMA KPB
+    function hitungOtomatisKPB() {
+        const tglBeli = document.getElementById('tgl_beli').value;
+        const tipe = document.getElementById('tipe_motor').value;
+        const jenis = document.getElementById('jenis_kpb').value;
+        
+        if (tglBeli && tipe && jenis) {
+            const cfg = configKPB[tipe][jenis];
+            document.getElementById('max_km').value = cfg.km;
+            document.getElementById('max_bln').value = cfg.bln;
+            
+            // Hitung Tanggal Max Servis: Tgl Beli + (Maks Bulan * 30 hari)
+            let sDate = new Date(tglBeli);
+            sDate.setDate(sDate.getDate() + (cfg.bln * 30));
+            
+            // Jika jatuh di hari Minggu, geser ke Sabtu agar tidak ketemu tutup AHASS
+            if (sDate.getDay() === 0) sDate.setDate(sDate.getDate() - 1);
+            
+            document.getElementById('max_tgl_service_kpb').value = sDate.toISOString().split('T')[0];
+            recalculateKPB(); // Hitung tgl reminder
+        }
+    }
+
+    function recalculateKPB() {
+		const jenis = document.getElementById('jenis_kpb').value;
+		const max_km = document.getElementById('max_km').value;
+        const sDateStr = document.getElementById('max_tgl_service_kpb').value;
+		const sDate = new Date(sDateStr);
+        const hDays = document.getElementById('h_days_kpb').value;
+        const rDate = calculateReminderDate(sDateStr, hDays);
+        
+        if(rDate) {
+            document.getElementById('tgl_reminder_kpb').value = rDate.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+            globalData = {
+                startRemind: rDate,
+                endRemind: new Date(sDateStr),
+                title: `Pengingat Servis ${document.getElementById('jenis_kpb').value} untuk Motor Anda`,
+                description: `Ingat, segera lakukan Service ${jenis} sebelum ${max_km} km atau tanggal ${sDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric'})} untuk menghindari kadaluarsa ${jenis} anda. Nb. Syarat dan Ketentuan berlaku.`
+            };
+        }
+    }
+
+    // FUNGSI UTAMA NON-KPB
+    function hitungOtomatisNonKPB() {
+        const bln = document.getElementById('jml_bulan_non').value;
+        if(!bln) return;
+
+        let sDate = new Date();
+        sDate.setMonth(sDate.getMonth() + parseInt(bln));
+        
+		// Jika jatuh di hari Minggu, geser ke Sabtu agar tidak ketemu tutup AHASS
+        if (sDate.getDay() === 0) sDate.setDate(sDate.getDate() - 1);
+		
+        document.getElementById('tgl_service_non').value = sDate.toISOString().split('T')[0];
+        recalculateNonKPB();
+    }
+
+    function recalculateNonKPB() {
+        const sDateStr = document.getElementById('tgl_service_non').value;
+        const hDays = document.getElementById('h_days_non').value;
+        const rDate = calculateReminderDate(sDateStr, hDays);
+        
+        if(rDate) {
+            document.getElementById('tgl_reminder_non').value = rDate.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+            globalData = {
+                startRemind: rDate,
+                endRemind: new Date(sDateStr),
+                title: `Pengingat Servis Berkala untuk Motor Anda`,
+                description: `Ingat sudah tiba saatnya servis berkala untuk menjaga performa motor Anda.`
+            };
+        }
+    }
+	
+	// Fungsi tambahan untuk mereset warna border
+	function resetValidationStyle() {
+		const inputs = document.querySelectorAll('input, select');
+		inputs.forEach(input => {
+			input.style.borderColor = "#ddd"; // Kembalikan ke warna abu-abu default
+		});
+	}
+
+    function validasiDanKirim() {
+		// 1. Reset semua border ke warna normal dahulu
+		resetValidationStyle();
+		
+		let isValid = true;
+		let pesanError = "Mohon lengkapi data berikut:\n";
+
+		// 2. Validasi Jenis Reminder
+		if (!currentJenis) {
+			alert("Pilih Jenis Reminder (KPB atau NON-KPB) terlebih dahulu!");
+			return;
+		}
+
+		if (currentJenis === 'KPB') {
+			// Validasi Tanggal Pembelian
+			const tglBeli = document.getElementById('tgl_beli');
+			if (!tglBeli.value) {
+				tglBeli.style.borderColor = "red";
+				isValid = false;
+			}
+
+			// Validasi Tipe Motor
+			const tipeMotor = document.getElementById('tipe_motor');
+			if (tipeMotor.selectedIndex <= 0) {
+				tipeMotor.style.borderColor = "red";
+				isValid = false;
+			}
+
+			// Validasi Jenis KPB
+			const jenisKpb = document.getElementById('jenis_kpb');
+			if (jenisKpb.selectedIndex <= 0) {
+				jenisKpb.style.borderColor = "red";
+				isValid = false;
+			}
+		} else {
+			// Validasi Non-KPB (Contoh: Estimasi bulan)
+			const jmlBulan = document.getElementById('jml_bulan_non');
+			if (!jmlBulan.value) {
+				jmlBulan.style.borderColor = "red";
+				isValid = false;
+			}
+		}
+
+		// 3. Eksekusi jika valid
+		if (isValid) {
+			// Pastikan kalkulasi terbaru sudah masuk ke globalData
+			if (currentJenis === 'KPB') recalculateKPB(); else recalculateNonKPB();
+			
+			generateCalendarLink();
+		}
+	}
+
+    // Perbaikan formatDate agar tahan banting terhadap timezone dan error
+	const formatDate = (d) => {
+		if (!d) return "";
+		// Mengambil tanggal lokal tanpa konversi UTC agar tidak mundur 1 hari
+		const year = d.getFullYear();
+		const month = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${year}${month}${day}`;
+	};
+
+	function generateCalendarLink() {
+		if (!globalData.startRemind || !globalData.endRemind) return;
+
+		const start = globalData.startRemind;
+		const end = globalData.endRemind;
+		
+		const startStr = formatDate(start);
+		const endStr = formatDate(end);
+		
+		// Perbaikan: Event dibuat hanya berdurasi 1 jam agar rapi di kalender
+		const dateRange = `${startStr}T010000Z/${endStr}T020000Z`;
+		const rrule = `RRULE:FREQ=WEEKLY;BYDAY=SU;UNTIL=${endStr}T235959Z`;
+		
+		const baseUrl = "https://www.google.com/calendar/render?action=TEMPLATE";
+		const params = [
+			`text=${encodeURIComponent(globalData.title)}`, 
+			`dates=${dateRange}`, 
+			`details=${encodeURIComponent(globalData.description)}`, 
+			`recur=${encodeURIComponent(rrule)}`, 
+			`location=AHASS`
+		];
+
+		const finalUrl = baseUrl + "&" + params.join("&");
+		
+		// Tampilkan hasil
+		document.getElementById('google-cal-btn').href = finalUrl;
+		document.getElementById('google-cal-btn').style.display = 'flex';
+		document.getElementById('qr-image').src = `https://quickchart.io/qr?text=${encodeURIComponent(finalUrl)}&size=250`;
+		document.getElementById('qr-container').classList.remove('hidden');
+		document.getElementById('form-whatsapp').classList.remove('hidden');
+		document.getElementById('whatsapp-btn').style.display = 'flex';
+		document.getElementById('form-email').classList.remove('hidden');
+		document.getElementById('email-btn').style.display = 'flex';
+	}
+
+	function kirimWhatsApp() {
+		let nomorRaw = document.getElementById('no_whatsapp').value.replace(/[^\d]/g, '');
+
+		// Validasi panjang nomor
+		if (nomorRaw.length < 10) {
+			alert("Nomor HP tidak valid! Masukkan minimal 10 digit.");
+			return;
+		}
+
+		let nomorWA = nomorRaw.replace(/^0/, '62');
+		const linkKalender = document.getElementById('google-cal-btn').href;
+		
+		// Gunakan template literal agar pesan rapi
+		const pesan = `Halo, kami dari AHASS. \n\nIni adalah link pengingat servis motor Anda. Silakan klik dan simpan ke kalender HP Anda agar tidak lupa: \n\n${linkKalender}`;
+
+		window.open(`https://wa.me/${nomorWA}?text=${encodeURIComponent(pesan)}`, '_blank');
+	}
+	
+	function kirimEmail() {
+		const emailTujuan = document.getElementById('no_email').value;
+		const linkKalender = document.getElementById('google-cal-btn').href;
+
+		if (!emailTujuan) {
+			alert("Silakan isi alamat email konsumen terlebih dahulu!");
+			return;
+		}
+
+		const subjek = encodeURIComponent("Link Pengingat Servis AHASS");
+		const isiPesan = encodeURIComponent(
+			`Halo,\n\nTerima kasih telah mempercayakan perawatan motor Anda di AHASS.\n\n` +
+			`Kami telah membuatkan jadwal pengingat servis otomatis. Silakan klik link di bawah ini dan pilih "Simpan" untuk menambahkannya ke kalender ponsel Anda:\n\n` +
+			`${linkKalender}\n\n` +
+			`Salam,\nManajemen AHASS`
+		);
+
+		// Membuka aplikasi email default
+		window.location.href = `mailto:${emailTujuan}?subject=${subjek}&body=${isiPesan}`;
+	}	
+</script>
+<script>
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW Registered!', reg))
+      .catch(err => console.log('SW Registration Failed', err));
+  });
+}
+</script>
+</body>
+</html>

@@ -1,38 +1,24 @@
-const CACHE_NAME = 'ahass-v1.0';
+const CACHE_NAME = 'ahass-v1';
 const assets = [
   './',
   './index.html',
-  './icon.png',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
 ];
 
-// 1. Install & Skip Waiting
-self.addEventListener('install', evt => {
-  self.skipWaiting(); // Memaksa SW baru menjadi aktif segera
-  evt.waitUntil(
+// Install Service Worker
+self.addEventListener('install', e => {
+  e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(assets);
     })
   );
 });
 
-// 2. Activate & Hapus Cache Lama (Clean up)
-self.addEventListener('activate', evt => {
-  evt.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.filter(key => key !== CACHE_NAME)
-            .map(key => caches.delete(key)) // Menghapus v1 saat v1.1 aktif
-      );
-    })
-  );
-});
-
-// 3. Fetch data
-self.addEventListener('fetch', evt => {
-  evt.respondWith(
-    caches.match(evt.request).then(cacheRes => {
-      return cacheRes || fetch(evt.request);
+// Fetch Assets from Cache
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(response => {
+      return response || fetch(e.request);
     })
   );
 });
